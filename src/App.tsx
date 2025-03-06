@@ -55,13 +55,41 @@ function App() {
   const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors },
   } = useForm<Inputs>({
     resolver: zodResolver(schema),
     mode: "onChange"
   });
 
-  const onSubmit: SubmitHandler<Inputs> = (data) => console.log(data);
+  const onSubmit: SubmitHandler<Inputs> = async (data) => {
+    // Add the required type field
+    const payload = {
+      type: "INDIVIDUAL",
+      ...data, // Include all form data
+    };
+
+    console.log(payload)
+  
+    try {
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+  
+      const responseData = await response.json();
+      console.log("Success:", responseData);
+    } catch (error) {
+      console.error("Error submitting form:", error);
+    }
+  };  
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -132,7 +160,7 @@ function App() {
         label="Phone Number *" 
         variant="outlined" 
         autoComplete='off'
-        {...register("phoneNumber")} 
+        {...register("phoneNumber", { onChange: () => trigger("email") })} 
         error={!!errors.phoneNumber}
         helperText={errors.phoneNumber?.message || ""}
       />
@@ -142,7 +170,7 @@ function App() {
         label="Email Address *" 
         variant="outlined" 
         autoComplete='off'
-        {...register("email")} 
+        {...register("email", { onChange: () => trigger("phoneNumber") })} 
         error={!!errors.email}
         helperText={errors.email?.message || ""}
       />
