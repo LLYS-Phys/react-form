@@ -47,6 +47,9 @@ const schema = z.object({
 }).refine((data) => data.phoneNumber || data.email, {
   message: "Either phone number or email is required",
   path: ["phoneNumber"],
+}).refine((data) => (data.address.toLowerCase().includes('sofia') && data.postcode == '1000') || !data.address.toLocaleLowerCase().includes('sofia'), {
+  message: "Your postal code and city don't match",
+  path: ["postcode"]
 });
 
 type Inputs = z.infer<typeof schema>;
@@ -139,7 +142,7 @@ function App() {
         id="address" 
         label="Address *" 
         variant="outlined" 
-        {...register("address")} 
+        {...register("address", { onChange: () => trigger("postcode") })} 
         autoComplete='off'
         error={!!errors.address}
         helperText={errors.address?.message || ""}
@@ -149,7 +152,7 @@ function App() {
         id="postcode" 
         label="Postcode *" 
         variant="outlined" 
-        {...register("postcode")} 
+        {...register("postcode", { onChange: () => trigger("address") })} 
         autoComplete='off'
         error={!!errors.postcode}
         helperText={errors.postcode?.message || ""}
