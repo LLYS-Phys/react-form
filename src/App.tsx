@@ -25,7 +25,10 @@ const schema = z.object({
     egn: z.string()
     .regex(/^\d{10}$/, "EGN must be exactly 10 digits")
     .optional()
-    .or(z.literal("")),
+    .or(z.literal(""))
+    .refine((egn) => egn === "" || isValidBulgarianEGN(egn!), {
+      message: "Invalid Bulgarian EGN format",
+    }),
 
   address: z.string()
     .min(2, "Address must be at least 2 characters")
@@ -47,10 +50,31 @@ const schema = z.object({
 }).refine((data) => data.phoneNumber || data.email, {
   message: "Either phone number or email is required",
   path: ["phoneNumber"],
-}).refine((data) => (data.address.toLowerCase().includes('sofia') && data.postcode == '1000') || !data.address.toLocaleLowerCase().includes('sofia'), {
-  message: "Your postal code and city don't match",
-  path: ["postcode"]
 });
+
+const isValidBulgarianEGN = (egn: string): boolean => {
+  if (!/^\d{10}$/.test(egn)) return false;
+
+  const year = parseInt(egn.substring(0, 2), 10);
+  const month = parseInt(egn.substring(2, 4), 10);
+  const day = parseInt(egn.substring(4, 6), 10);
+  const birthMonth = month > 40 ? month - 40 : month > 20 ? month - 20 : month;
+
+  const fullYear = month > 40 ? 1800 + year : month > 20 ? 2000 + year : 1900 + year;
+  const date = new Date(fullYear, birthMonth - 1, day);
+  if (date.getFullYear() !== fullYear || date.getMonth() + 1 !== birthMonth || date.getDate() !== day) {
+    return false;
+  }
+
+  const weights = [2, 4, 8, 5, 10, 9, 7, 3, 6];
+  let checksum = 0;
+  for (let i = 0; i < 9; i++) {
+    checksum += parseInt(egn[i], 10) * weights[i];
+  }
+  const validChecksum = checksum % 11 % 10;
+
+  return validChecksum === parseInt(egn[9], 10);
+};
 
 type Inputs = z.infer<typeof schema>;
 
@@ -59,13 +83,25 @@ function App() {
     register,
     handleSubmit,
     trigger,
-    formState: { errors },
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitted },
   } = useForm<Inputs>({
     resolver: zodResolver(schema),
     mode: "onChange"
   });
 
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
+    if (data.address.toLowerCase().includes("sofia") && data.postcode !== "1000") {
+      setError("postcode", {
+        type: "manual",
+        message: "Your postal code and city don't match",
+      });
+      return;
+    }
+
+    clearErrors()
+
     // Add the required type field
     const payload = {
       type: "INDIVIDUAL",
@@ -141,21 +177,17 @@ function App() {
       <TextField 
         id="address" 
         label="Address *" 
-        variant="outlined" 
-        {...register("address", { onChange: () => trigger("postcode") })} 
-        autoComplete='off'
-        error={!!errors.address}
-        helperText={errors.address?.message || ""}
+        {...register("address")} 
+        error={!!errors.address && (errors.address?.type !== "postcode" || isSubmitted)} 
+        helperText={(errors.address?.type !== "postcode" || isSubmitted) ? errors.address?.message || "" : ""}
       />
 
       <TextField 
         id="postcode" 
         label="Postcode *" 
-        variant="outlined" 
-        {...register("postcode", { onChange: () => trigger("address") })} 
-        autoComplete='off'
-        error={!!errors.postcode}
-        helperText={errors.postcode?.message || ""}
+        {...register("postcode")} 
+        error={!!errors.postcode && (errors.postcode?.type !== "address" || isSubmitted)} 
+        helperText={(errors.postcode?.type !== "address" || isSubmitted) ? errors.postcode?.message || "" : ""}
       />
 
       <TextField 
