@@ -9,7 +9,32 @@ form {
   width: 50vw;
   gap: 1rem;
   align-items: center;
+  background-color: rgba(224, 255, 255, 0.8);
+  padding: 2rem 5rem;
+  box-shadow: 0.5rem 0.5rem 0.5rem rgba(211, 211, 211, 0.7);
+  border-radius: 1rem;
+  border: 0.5px solid rgba(211, 211, 211, 0.33);
+  margin: 1rem;
 }
 form div {
   width: 100%;
+}
+button {
+  background-color: black !important;
+  font-weight: 600 !important;
+}
+button:hover {
+  opacity: 0.8;
+}
+h1 {
+  font-family: monospace;
+}
+@media screen and (max-width: 1023px) {
+  form {
+    padding: 1rem;
+    width: 90vw;
+  }
+  h1 {
+    text-align: center;
+  }
 }
