@@ -1,83 +1,14 @@
-import { Button, TextField, Snackbar } from '@mui/material'
-import './App.css'
-import { useForm, SubmitHandler } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import { useState } from "react";
+import { Button, Snackbar } from '@mui/material';
+import './App.css';
+import { useForm, SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
+import { SCHEMA } from './components/schema';
+import { z } from 'zod';
+import FormInput from './components/formInput'
 
-const schema = z.object({
-  firstName: z.string()
-    .min(2, "Must be at least 2 characters")
-    .max(64, "Must be at most 64 characters")
-    .regex(/^[A-Za-z' -]+$/, "Only letters, apostrophes, hyphens, and spaces allowed"),
-  
-  middleName: z.string()
-    .min(2, "Must be at least 2 characters")
-    .max(64, "Must be at most 64 characters")
-    .regex(/^[A-Za-z' -]+$/, "Only letters, apostrophes, hyphens, and spaces allowed")
-    .optional()
-    .or(z.literal("")),
-
-  lastName: z.string()
-    .min(2, "Must be at least 2 characters")
-    .max(64, "Must be at most 64 characters")
-    .regex(/^[A-Za-z' -]+$/, "Only letters, apostrophes, hyphens, and spaces allowed"),
-  
-  egn: z.string()
-    .regex(/^\d{10}$/, "EGN must be exactly 10 digits")
-    .optional()
-    .or(z.literal(""))
-    .refine((egn) => egn === "" || isValidBulgarianEGN(egn!), {
-      message: "Invalid Bulgarian EGN format",
-    }),
-
-  address: z.string()
-    .min(2, "Address must be at least 2 characters")
-    .max(255, "Address cannot exceed 255 characters"),
-
-  postcode: z.string()
-    .length(4, "Postcode must be exactly 4 digits")
-    .regex(/^\d{4}$/, "Postcode must contain only digits"),
-
-  phoneNumber: z.string()
-    .regex(/^(\+|00)[0-9]{9,16}$/, "Invalid phone number")
-    .optional()
-    .or(z.literal("")),
-
-  email: z.string()
-    .email("Invalid email format")
-    .optional()
-    .or(z.literal("")),
-}).refine((data) => data.phoneNumber || data.email, {
-  message: "Either phone number or email is required",
-  path: ["phoneNumber"],
-});
-
-const isValidBulgarianEGN = (egn: string): boolean => {
-  if (!/^\d{10}$/.test(egn)) return false;
-
-  const year = parseInt(egn.substring(0, 2), 10);
-  const month = parseInt(egn.substring(2, 4), 10);
-  const day = parseInt(egn.substring(4, 6), 10);
-  const birthMonth = month > 40 ? month - 40 : month > 20 ? month - 20 : month;
-
-  const fullYear = month > 40 ? 1800 + year : month > 20 ? 2000 + year : 1900 + year;
-  const date = new Date(fullYear, birthMonth - 1, day);
-  if (date.getFullYear() !== fullYear || date.getMonth() + 1 !== birthMonth || date.getDate() !== day) {
-    return false;
-  }
-
-  const weights = [2, 4, 8, 5, 10, 9, 7, 3, 6];
-  let checksum = 0;
-  for (let i = 0; i < 9; i++) {
-    checksum += parseInt(egn[i], 10) * weights[i];
-  }
-  const validChecksum = checksum % 11 % 10;
-
-  return validChecksum === parseInt(egn[9], 10);
-};
-
-type Inputs = z.infer<typeof schema>;
+const schema = SCHEMA;
+export type Inputs = z.infer<typeof schema>;
 
 function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -85,143 +16,90 @@ function App() {
   const {
     register,
     handleSubmit,
-    trigger,
     setError,
+    trigger,
     clearErrors,
-    formState: { errors, isSubmitted },
+    formState: { errors },
   } = useForm<Inputs>({
     resolver: zodResolver(schema),
-    mode: "onChange"
+    mode: 'onChange',
   });
 
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
-    if (data.address.toLowerCase().includes("sofia") && data.postcode !== "1000") {
-      setError("postcode", {
-        type: "manual",
+    if (data.address.toLowerCase().includes('sofia') && data.postcode !== '1000') {
+      setError('postcode', {
+        type: 'manual',
         message: "Your postal code and city don't match",
       });
       return;
     }
 
-    clearErrors()
+    clearErrors();
 
     const payload = {
-      type: "INDIVIDUAL",
+      type: 'INDIVIDUAL',
       ...data,
     };
 
-    console.log(payload)
+    console.log(payload);
 
     try {
-      const response = await fetch("/api/customers", {
-        method: "POST",
+      const response = await fetch('/api/customers', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
       });
 
-      setSuccessMessage("Form submitted successfully!");
+      setSuccessMessage('Form submitted successfully!');
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       const responseData = await response.json();
-      console.log("Success:", responseData);
-
+      console.log('Success:', responseData);
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error('Error submitting form:', error);
     }
   };
+
+  const formFields = [
+    { id: 'firstName', label: 'First Name *' },
+    { id: 'middleName', label: 'Middle Name' },
+    { id: 'lastName', label: 'Last Name *' },
+    { id: 'egn', label: 'EGN' },
+    { id: 'address', label: 'Address *' },
+    { id: 'postcode', label: 'Postcode *' },
+    { id: 'phoneNumber', label: 'Phone Number *' },
+    { id: 'email', label: 'Email Address *' },
+  ];
 
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
         <h1>Please enter your details:</h1>
+        {formFields.map(({ id, label }) => (
+          <FormInput
+            key={id}
+            id={id as keyof Inputs}
+            label={label}
+            register={register}
+            trigger={trigger}
+            error={!!errors[id as keyof Inputs]}
+            helperText={errors[id as keyof Inputs]?.message || ''}
+          />
+        ))}
 
-        <TextField 
-          id="firstName" 
-          label="First Name *" 
-          variant="outlined" 
-          {...register("firstName")} 
-          autoComplete='off'
-          error={!!errors.firstName}
-          helperText={errors.firstName?.message || ""}
-        />
-
-        <TextField 
-          id="middleName" 
-          label="Middle Name" 
-          variant="outlined" 
-          {...register("middleName")} 
-          autoComplete='off'
-          error={!!errors.middleName}
-          helperText={errors.middleName?.message || ""}
-        />
-
-        <TextField 
-          id="lastName" 
-          label="Last Name *" 
-          variant="outlined" 
-          {...register("lastName")} 
-          autoComplete='off'
-          error={!!errors.lastName}
-          helperText={errors.lastName?.message || ""}
-        />
-
-        <TextField 
-          id="egn" 
-          label="EGN" 
-          variant="outlined" 
-          {...register("egn")} 
-          autoComplete='off'
-          error={!!errors.egn}
-          helperText={errors.egn?.message || ""}
-        />
-
-        <TextField 
-          id="address" 
-          label="Address *" 
-          {...register("address")} 
-          error={!!errors.address && (errors.address?.type !== "postcode" || isSubmitted)} 
-          helperText={(errors.address?.type !== "postcode" || isSubmitted) ? errors.address?.message || "" : ""}
-        />
-
-        <TextField 
-          id="postcode" 
-          label="Postcode *" 
-          {...register("postcode")} 
-          error={!!errors.postcode && (errors.postcode?.type !== "address" || isSubmitted)} 
-          helperText={(errors.postcode?.type !== "address" || isSubmitted) ? errors.postcode?.message || "" : ""}
-        />
-
-        <TextField 
-          id="phoneNumber" 
-          label="Phone Number *" 
-          variant="outlined" 
-          autoComplete='off'
-          {...register("phoneNumber", { onChange: () => trigger("email") })} 
-          error={!!errors.phoneNumber}
-          helperText={errors.phoneNumber?.message || ""}
-        />
-
-        <TextField 
-          id="email" 
-          label="Email Address *" 
-          variant="outlined" 
-          autoComplete='off'
-          {...register("email", { onChange: () => trigger("phoneNumber") })} 
-          error={!!errors.email}
-          helperText={errors.email?.message || ""}
-        />
-
-        <Button variant="contained" type="submit">Submit</Button>
+        <Button variant="contained" type="submit">
+          Submit
+        </Button>
       </form>
 
       {successMessage && (
         <Snackbar
-          anchorOrigin={{vertical: 'bottom', horizontal: 'right'}}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           open={!!successMessage}
           autoHideDuration={6000}
           onClose={() => setSuccessMessage(null)}
@@ -229,7 +107,7 @@ function App() {
         />
       )}
     </div>
-  )
+  );
 }
 
 export default App;
